@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "F.L.O.R.A",
+    "slug": "flora-app",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "cl.duocuc.floraapp",
+      "versionCode": 2,
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "F.L.O.R.A necesita acceso a la cámara para escanear tus plantas.",
+          "recordAudioAndroidPermission": false
+        }
+      ],
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e753fdaf-babb-44b1-8fd7-af2e54692327"
+      }
+    },
+    "owner": "josedelgados-team"
+  }
+}

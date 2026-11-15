@@ -60,12 +60,12 @@ Si se encuentra dentro de un invernadero sin señal de internet o el servicio ex
 ---
 
 ## 5. Evaluación Lumínica y Compatibilidad Ambiental
-Antes de ubicar una nueva planta en un sector del jardín o invernadero:
-1. Acceda al **Escáner de Entorno** y apunte la cámara hacia la fuente de iluminación natural o artificial del lugar.
-2. La aplicación evaluará la intensidad lumínica ambiental y mostrará en pantalla si el espacio resulta **óptimo**, **aceptable** o **riesgoso** respecto a los requerimientos fisiológicos de la especie seleccionada.
 
----
+Esta funcionalidad opera como la continuación directa del proceso de reconocimiento botánico, permitiendo determinar la ubicación física ideal del ejemplar dentro del vivero o jardín a partir de sus requerimientos fisiológicos detectados:
 
+1. **Obtención de Resultados Botánicos:** Tras capturar o seleccionar la fotografía de la planta y visualizar su ficha de identificación en la **pantalla de resultados**, seleccione la opción de **Evaluación Lumínica** (o *Evaluar Ubicación*) disponible en dicha vista.
+2. **Medición del Espacio Destino:** Diríjase al sector del invernadero, patio o jardín donde planea ubicar la planta y apunte la cámara del dispositivo hacia la fuente de iluminación natural o artificial predominante en ese punto.
+3. **Diagnóstico de Compatibilidad en Tiempo Real:** El sistema contrasta automáticamente la intensidad lumínica captada en el entorno con los parámetros ideales de exposición solar de la especie recién identificada, indicando en pantalla si el lugar resulta **Óptimo**, **Aceptable** o **Riesgoso** antes de registrar definitivamente su ubicación en el inventario.
 ## 6. Diagnóstico Fitopatológico y Control de Plagas
 Si observa deterioro físico en alguno de sus ejemplares:
 1. Ingrese a la ficha de la planta desde **Jardín** y seleccione **Diagnosticar Salud**.
@@ -75,31 +75,33 @@ Si observa deterioro físico en alguno de sus ejemplares:
 ---
 
 ## 7. Gestión del Jardín, Agenda de Riego y Gamificación
-- **Ficha de Planta:** Al seleccionar cualquier ejemplar en **Jardín**, podrá consultar su fotografía, requerimientos de luz y agua, insignia de origen de identificación e historial cronológico de riegos.
-- **Calendario Cronológico ("Agenda"):** La pestaña inferior **Agenda** organiza automáticamente los próximos riegos por fecha (ej. *Mié 18 Nov*, *Vie 20 Nov*), indicando el intervalo de frecuencia (ej. *Cada 7 días*) y el ambiente (*Interior* / *Exterior*).
-- **Registro de Riego y Notificaciones:** Al marcar un riego como completado, el dispositivo emitirá una confirmación háptica (vibración), recalculará la siguiente fecha del ciclo y sumará experiencia a su racha diaria. Si visualiza el aviso *"Recordatorios desactivados (actívalos en Perfil)"*, tóquelo o diríjase a **Perfil** para habilitar las alertas locales.
 
----
+- **Generación Automática tras el Escaneo y Guardado:** Inmediatamente después de identificar una planta y guardarla en su colección (**Guardar en Jardín**), el sistema calcula su ciclo hídrico personalizado según los requerimientos fisiológicos de la especie y su tratamiento específico, incorporándola automáticamente en la pestaña inferior **Agenda**.
+- **Calendario Cronológico y Cuenta Regresiva ("Agenda"):** La vista **Agenda** organiza cronológicamente los próximos riegos indicando **en cuántos días corresponde volver a regar** cada ejemplar (ej. *Hoy*, *En 3 días*, *En 7 días*), junto con la fecha exacta (ej. *Mié 18 Nov*), el intervalo de frecuencia (ej. *Cada 7 días*) y el ambiente (*Interior* / *Exterior*).
+- **Interpretación Correcta de la Frecuencia (Intervalos vs. Días Consecutivos):** El intervalo indicado por la aplicación depende directamente de la especie y del tratamiento de cuidado que requiera cada ejemplar:
+  - **Qué significa "Cada 7 días" (Intervalo de espera):** Consiste en **regar un solo día**, esperar una semana completa a que el sustrato drene y se seque adecuadamente, y recién cumplidos esos 7 días volver a aplicar agua.
+  - **Por qué no son "7 días seguidos":** Regar durante siete días consecutivos provocaría saturación de humedad y pudrición de raíces. La cuenta regresiva de **F.L.O.R.A.** controla exactamente esos días de espera entre un riego y otro.
+- **Ficha de Planta:** Al seleccionar cualquier ejemplar guardado en **Jardín**, podrá consultar su fotografía, requerimientos de luz y agua, insignia de origen de identificación e historial cronológico de riegos realizados.
+- **Registro de Riego, Notificaciones y Racha:** Al marcar un riego como completado, el dispositivo emitirá una confirmación háptica (vibración), reiniciará automáticamente la cuenta regresiva hacia el siguiente ciclo y sumará experiencia a su racha diaria. Si visualiza el aviso *"Recordatorios desactivados (actívalos en Perfil)"*, tóquelo o diríjase a **Perfil** para habilitar las alertas locales programadas en el teléfono.
 
-## 8. Perfil, Accesibilidad y Trabajo Sin Internet ("Perfil")
-Desde la pestaña inferior **Perfil**, puede administrar su cuenta, revisar su progreso y adaptar la interfaz:
+## 8. Perfil, Accesibilidad Nativa y Trabajo Sin Internet ("Perfil")
 
-- **Medallas y Progreso:** Visualice su nivel actual, racha de cuidado y barras de progreso para desbloquear logros por constancia e inventario botánico.
-- **Notificaciones Locales:** Active o desactive los recordatorios automáticos de riego en su teléfono.
-- **Accesibilidad Visual (Tamaño de Texto):** Ajuste la escala tipográfica entre *Normal*, *Grande* y *Más grande* para facilitar la lectura bajo luz solar directa en terreno.
-- **Vibración Háptica:** Habilite o deshabilite la respuesta táctil al confirmar acciones.
-- **Operación Offline-First:** Si pierde cobertura celular o Wi-Fi, continúe consultando su jardín, revisando su agenda y realizando identificaciones manuales con normalidad; la información se resguarda en la base de datos local (**SQLite**) y se sincroniza automáticamente con la nube al restablecerse la conexión.
-- **Cierre de Sesión:** Presione **Cerrar sesión** al finalizar su jornada para proteger el acceso a su cuenta.
+Desde la pestaña inferior **Perfil**, puede administrar su cuenta, consultar su avance operativo y gestionar la continuidad de trabajo en terreno:
 
----
+- **Medallas y Progreso:** Visualice su nivel actual, su racha diaria de cuidado botánico y las barras de progreso para desbloquear logros por constancia e inventario registrado.
+- **Notificaciones Locales:** Active o desactive los recordatorios automáticos de riego programados directamente en su teléfono.
+- **Accesibilidad Adaptativa del Sistema Operativo:** La interfaz de **F.L.O.R.A.** hereda de forma nativa las preferencias de accesibilidad configuradas en su dispositivo Android. Si usted amplía el **tamaño de letra** o activa/desactiva la **vibración táctil (respuesta háptica)** desde los ajustes generales de su teléfono, la aplicación adaptará automáticamente sus textos y confirmaciones sin requerir configuraciones duplicadas dentro de la app.
+- **Operación Offline-First:** Si pierde cobertura celular o Wi-Fi en sectores del invernadero, continúe consultando su jardín, revisando su agenda y registrando actividades con normalidad; la información se resguarda en la base de datos local (**SQLite**) y se sincroniza automáticamente con la nube al restablecerse la conexión.
+- **Cierre de Sesión:** Presione **Cerrar sesión** al finalizar su jornada para revocar el acceso activo en el dispositivo y proteger su cuenta.
 
-## 9. Resolución de Problemas Frecuentes (Troubleshooting) y Alcance v2.0
+## 9. Resolución de Problemas Frecuentes (Troubleshooting) y Alcance v2.0.0
 
 | Situación / Mensaje en Pantalla | Causa Probable | Acción Recomendada |
 | :--- | :--- | :--- |
-| **"No pudimos procesar la imagen"** | Fotografía desenfocada, a contraluz o con exceso de sombras. | Ubique la planta bajo luz natural indirecta, centre una sola hoja y presione **Reintentar** o **Usar cuestionario**. |
-| **La primera consulta en la nube tarda ~1 minuto** | El servidor en la nube entró en reposo energético por inactividad prolongada. | Aguarde unos segundos a que el servicio se reactive; las siguientes consultas responderán en milisegundos. |
-| **El escáner pasa directo al cuestionario** | Ausencia de señal móvil o activación preventiva del *Circuit Breaker* (ventana de 60 s tras fallos de red). | Complete las 3 preguntas del cuestionario local; el sistema retomará la IA automáticamente tras 1 minuto. |
-| **Error de autorización al sincronizar** | Token de sesión JWT caducado tras instalar una actualización de la aplicación. | Ingrese a **Perfil**, presione **Cerrar sesión** y vuelva a iniciar sesión con su correo y contraseña. |
+| **"No pudimos procesar la imagen"** o baja confianza de acierto | Fotografía desenfocada, a contraluz, con exceso de sombras o especie poco visible. | Ubique la planta bajo luz natural indirecta, centre una sola hoja y presione **Reintentar** o **Usar cuestionario** (*Smart Fallback*). |
+| **El código 2FA (OTP) no llega** o indica que ha expirado | Correo filtrado en *Spam* o superación de la ventana de seguridad de **5 minutos (`300 s`)**. | Revise la bandeja de correo no deseado, aguarde el enfriamiento de **30 segundos** y presione **Reenviar código**. |
+| **Pérdida de conexión Wi-Fi o datos móviles** dentro del invernadero | Zonas sin cobertura de red en terreno durante la jornada operativa. | Continúe registrando riegos y consultas normalmente; **SQLite** resguarda los datos localmente y los sincroniza al volver la señal. |
+| **No suenan los recordatorios de riego** en el teléfono | Notificaciones locales desactivadas en la aplicación o bloqueadas por Android. | Ingrese a la pestaña **Perfil**, habilite **Notificaciones Locales** y confirme el permiso en los ajustes del sistema operativo. |
+| **Lectura imprecisa** en la Evaluación Lumínica | Obstrucción parcial del lente de la cámara o medición apuntando al suelo en sombra. | Apunte la cámara directamente hacia la fuente de iluminación predominante del sector donde ubicará la planta. |
 
-> **Nota de Alcance Funcional (Versión 2.0.0):** Con el objetivo de garantizar la integridad referencial del historial de riegos, las rachas de gamificación y los recordatorios locales programados en el sistema operativo, la eliminación física de ejemplares registrados se encuentra planificada dentro del ciclo evolutivo de la **versión 2.1**.
+> **Nota de Alcance Funcional (*Code Freeze* — Versión 2.0.0):** Con el objetivo de garantizar la integridad referencial en **PostgreSQL (3NF)**, evitar conflictos en la cola de sincronización *Offline-First* (**SQLite** $\rightarrow$ `/api/v1/sync/batch/`) y prevenir alarmas huérfanas programadas en el sistema operativo Android, la eliminación física de ejemplares registrados (*hard delete*) se encuentra formalmente planificada dentro del ciclo evolutivo de la **versión 2.1**.

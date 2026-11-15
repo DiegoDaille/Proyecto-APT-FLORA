@@ -100,72 +100,73 @@ flora_backend/
 2. Abra el archivo `.apk` en su teléfono Android y autorice la instalación de la aplicación.
 3. Al iniciar **F.L.O.R.A.**, el cliente enrutará automáticamente todas las peticiones mediante **HTTPS (TLS)** hacia la API productiva en la nube:
    `https://flora-backend-api.onrender.com/api/v1/`
+### 4. Generación de Compilaciones desde Código Fuente (Auditoría y Reproducibilidad)
 
-### Paso 2: Generación de Compilaciones desde Código Fuente (Solo Auditoría / Desarrollo)
-El entorno de desarrollo local (`npx expo start`) está reservado exclusivamente para depuración interna, ya que la bandera `__DEV__` redirige el tráfico hacia interfaces de bucle invertido (`10.0.2.2` o IP LAN) bloqueadas en dispositivos externos. Para generar una nueva compilación distribuible conectada a producción:
+El entorno de desarrollo local (`npx expo start`) está reservado exclusivamente para depuración interna, ya que la bandera `__DEV__` redirige el tráfico hacia interfaces de bucle invertido (`10.0.2.2` o IP LAN) bloqueadas en dispositivos externos.
 
-```powershell
-# 1. Instalar dependencias exactas del proyecto
-npm install
+Si un auditor o desarrollador externo desea compilar un nuevo binario `.apk` conectado a producción desde este código fuente, debe desvincular el identificador original de compilación (`projectId`) siguiendo este procedimiento:
 
-# 2. Compilar paquete binario nativo Android en la nube (caché limpia)
-eas build --profile preview --platform android --clear-cache
-### Paso 2: Verificación de Salud y Compilación APK
-```bash
-# Auditar integridad de dependencias nativas (18/18 checks)
-npx expo-doctor
+1. **Instalar dependencias, auditar salud y autenticarse en Expo:**
+   Cree una cuenta gratuita en [expo.dev](https://expo.dev) e inicie sesión desde la terminal dentro de la carpeta raíz de la aplicación móvil:
+   ```powershell
+   # 1. Instalar dependencias exactas del proyecto
+   npm install
 
-# Generar binario ejecutable Android (.apk) en EAS Cloud
-eas build -p android --profile preview
-```
+   # 2. Auditar integridad de dependencias nativas (18/18 checks)
+   npx expo-doctor
 
----
+   # 3. Iniciar sesión con su cuenta de Expo
+   npx eas-cli login
 
-## 4. Seguridad y Gobernanza Cloud ($0 USD)
-- **Inyección Segura de Secretos (Render Cloud):** Todas las llaves críticas (`SECRET_KEY` de Django, `PLANTNET_API_KEY`, credenciales de conexión a PostgreSQL y parámetros de servicio) se inyectan exclusivamente en tiempo de ejecución dentro de la memoria RAM del contenedor en Render, sin exponerse en el código fuente ni en el control de versiones.
-- **Almacenamiento Cifrado en Cliente (OWASP Mobile M9):** Los tokens de sesión **JWT** en el dispositivo Android se resguardan mediante el almacén criptográfico nativo `expo-secure-store`, previniendo accesos no autorizados desde el sistema de archivos.
-- **Seguridad en Tránsito (TLS/HTTPS):** Toda comunicación entre el cliente móvil y la API productiva viaja cifrada bajo protocolo HTTPS, aplicando políticas estrictas de CORS y validación de esquemas en Django REST Framework.
+## 4. Seguridad, Gobernanza Cloud y Disponibilidad ($0 USD)
 
----
-
+- **Inyección Segura de Secretos (Render Cloud):** Todas las credenciales críticas (`SECRET_KEY` de Django, `PLANTNET_API_KEY`, credenciales SMTP de **Brevo** para el despacho de correos de verificación y la cadena `DATABASE_URL` hacia Supabase) se inyectan exclusivamente en tiempo de ejecución dentro de la memoria RAM del contenedor en Render, sin exponerse en el código fuente ni en el control de versiones.
+- **Autenticación en Dos Pasos (2FA) y Resguardo Cifrado (OWASP Mobile M9):** Tanto el registro de cuentas como el inicio de sesión exigen validar un código temporal de un solo uso (**OTP**) enviado al correo electrónico del usuario. Una vez verificada la identidad, los tokens de sesión **JWT** se almacenan en el dispositivo Android mediante el almacén criptográfico nativo `expo-secure-store`, previniendo accesos no autorizados desde el sistema de archivos.
+- **Seguridad en Tránsito (TLS/HTTPS):** Toda comunicación entre la aplicación móvil y la API productiva viaja cifrada bajo protocolo HTTPS, aplicando políticas estrictas de CORS y validación de esquemas en Django REST Framework.
+- **Activación y Sonda de Salud del Servidor (*Warmup / Health Check*):** Debido a que la infraestructura PaaS gratuita (`$0 USD`) hiberna los contenedores tras periodos de inactividad (*Cold Start*), el servidor backend se activa y verifica en tiempo real accediendo al endpoint público de diagnóstico:
+- **Alta Disponibilidad Automatizada (*Keep-Alive Bot*):** Para garantizar respuesta inmediata sin tiempos de espera por inactividad en infraestructura PaaS gratuita (`$0 USD`), un bot externo de monitoreo ejecuta peticiones periódicas automatizadas hacia la sonda de salud `https://flora-backend-api.onrender.com/api/v1/health/`, manteniendo activo el contenedor WSGI en Render y verificando continuamente la conectividad con **PostgreSQL en Supabase**.
 ## 5. Variables de Entorno y Configuración Cloud (12-Factor App)
 
-Siguiendo el principio de separación estricta entre código y configuración (*Factor III — Config*), los parámetros operativos se gestionan de forma centralizada en la nube:
+Siguiendo el principio de separación estricta entre código y configuración (*Factor III — Config*), los parámetros operativos se gestionan de forma centralizada en **Render Cloud** sin comprometer secretos en el control de versiones:
 
-- **Backend Productivo (Render Environment + Supabase):** Configurado mediante variables de entorno en el panel de Render (documentadas estructuralmente en `flora_backend/.env.example`):
-  - `DATABASE_URL`: Cadena de conexión hacia **PostgreSQL en Supabase** (vía *Connection Pooler* para gestión eficiente de conexiones concurrentes).
-  - `PLANTNET_API_KEY`: Credencial privada para consultas al motor externo de visión artificial *Pl@ntNet v2*.
-  - `SECRET_KEY` / `ALLOWED_HOSTS`: Clave criptográfica de Django y restricción de dominio productivo (`flora-backend-api.onrender.com`).
-- **Cliente Móvil (`flora_app/src/config/appConfig.js`):** En artefactos compilados (`__DEV__ === false`), la aplicación ignora interfaces locales y enruta automáticamente todas las peticiones hacia `https://flora-backend-api.onrender.com/api/v1`.
-
----
+- **Backend Productivo (Render Environment + Supabase):** Configurado mediante variables de entorno en memoria RAM (documentadas estructuralmente en `flora_backend/.env.example`):
+  - **Servidor y Ciberseguridad Core:** `DEBUG=False`, `SECRET_KEY` (clave criptográfica de Django) y `ALLOWED_HOSTS` restringido al dominio productivo (`flora-backend-api.onrender.com`).
+  - **Persistencia Relacional (3NF):** `DATABASE_URL` hacia **PostgreSQL 15 en Supabase** vía *Connection Pooler* (puerto `6543`) junto con `DB_DISABLE_SERVER_SIDE_CURSORS=True`.
+  - **Almacenamiento de Objetos:** `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` y `SUPABASE_BUCKET` (`plant-photos`) para la gestión desacoplada de fotografías botánicas en **Supabase Storage**.
+  - **Autenticación 2FA y Sesiones JWT:** `TWO_FACTOR_REQUIRED=True`, `OTP_EXPIRY_SECONDS=300`, `OTP_MAX_ATTEMPTS=5`, `JWT_ACCESS_MINUTES=30` y `JWT_REFRESH_DAYS=7`.
+  - **Mensajería Transaccional (Brevo API):** `EMAIL_BACKEND` (`accounts.brevo_backend.BrevoEmailBackend`), `BREVO_API_KEY` y `DEFAULT_FROM_EMAIL` para el despacho vía API HTTP de códigos OTP de verificación.
+  - **Visión Artificial y Resiliencia:** `PLANTNET_API_KEY`, `PLANTNET_TIMEOUT_SECONDS=8` e `IDENTIFICATION_FALLBACK_TO_SIMULATED=True` para gobernar la conmutación automática (*Smart Fallback*).
+- **Cliente Móvil (`src/config/appConfig.js`):** En compilaciones de producción (`__DEV__ === false`), la aplicación ignora interfaces locales y enruta automáticamente todas las peticiones hacia `https://flora-backend-api.onrender.com/api/v1`.
 
 ## 6. Operación en la Nube y Aseguramiento de Calidad (QA)
 
-El servidor backend no requiere levantamiento manual en consola local, ya que se encuentra desplegado de forma continua en infraestructura cloud con despliegue automático desde repositorio Git.
+El servidor backend opera de forma desatendida y continua en infraestructura cloud mediante despliegue automático desde control de versiones, por lo que **no requiere levantar servidores ni consolas locales**.
 
-### Verificación de Servicios Productivos (Render & Supabase)
+### Verificación de Servicios Productivos (Render Cloud & Supabase)
 - **Endpoint Base API REST:** `https://flora-backend-api.onrender.com/api/v1/`
-- **Sondeo de Salud (Health Check / Keep-Alive):**
-  ```bash
-  curl -I [https://flora-backend-api.onrender.com/api/v1/health/](https://flora-backend-api.onrender.com/api/v1/health/)
-
+- **Sonda de Telemetría y Keep-Alive Automatizado:** `https://flora-backend-api.onrender.com/api/v1/health/` *(monitoreada de forma continua por bot de disponibilidad para asegurar respuesta inmediata `200 OK`)*.
+- **Contrato Interactivo OpenAPI 3.0 (Swagger UI):** `https://flora-backend-api.onrender.com/api/docs/`
+- **Persistencia y Almacenamiento Cloud:** Base de datos relacional **PostgreSQL 15 (3NF)** conectada vía *Transaction Connection Pooler* (puerto `6543`) y almacenamiento de evidencias fotográficas en **Supabase Storage** (`bucket: plant-photos`).
 ## 7. Endpoints REST Principales (Producción Render Cloud)
 
-Todos los servicios se exponen bajo el prefijo versionado `/api/v1/` y están documentados formalmente mediante el contrato **OpenAPI 3.0** (`flora_backend/schema.yml`).
+Todos los servicios se exponen bajo el prefijo versionado `/api/v1/` sobre protocolo **HTTPS/TLS** y se encuentran documentados formalmente mediante el contrato **OpenAPI 3.0** (`flora_backend/schema.yml`).
 
-| Método | Endpoint | Descripción | Seguridad / Estándar |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/health/` | Sonda de disponibilidad del servidor WSGI y enlace con PostgreSQL (*Keep-Alive*). | Público (12-Factor App) |
-| `POST` | `/api/v1/auth/login/` | Autenticación de credenciales y emisión de tokens de acceso (**JWT**). | HTTPS/TLS + JWT |
-| `POST` | `/api/v1/auth/token/refresh/` | Renovación controlada de sesión ante expiración del token de acceso. | JWT Refresh Token |
-| `POST` | `/api/v1/identify/` | Patrón BFF: recepción binaria (`RFC 7578`) y consulta cifrada a *Pl@ntNet API v2*. | JWT + OWASP Mobile M9 |
-| `GET / POST` | `/api/v1/plants/` | Sincronización bidireccional de inventario botánico y bitácora de riegos (3NF). | JWT + Integridad SQL |
-| `GET` | `/api/docs/` | Interfaz interactiva de exploración y prueba de contratos REST (Swagger UI). | OpenAPI 3.0 |
+- **Explorador Interactivo de APIs (Swagger UI):** [https://flora-backend-api.onrender.com/api/docs/]
 
----
+| Módulo | Método | Endpoint | Descripción Funcional | Seguridad / Estándar |
+| :--- | :--- | :--- | :--- | :--- |
+| **Sistema** | `GET` | `/api/v1/health/` | Sonda de disponibilidad del contenedor WSGI y enlace con PostgreSQL (*Warmup* detallado más arriba). | Público (12-Factor App) |
+| **Autenticación** | `POST` | `/api/v1/auth/register/`<br>`/api/v1/auth/register/verify/`<br>`/api/v1/auth/register/resend/` | Alta de operario, verificación de cuenta mediante código OTP 2FA vía **Brevo API** y reenvío controlado. | HTTPS/TLS + 2FA OTP |
+| **Autenticación** | `POST` | `/api/v1/auth/login/`<br>`/api/v1/auth/2fa/verify/`<br>`/api/v1/auth/2fa/resend/` | Validación de credenciales, verificación OTP (`300 s`, máx. `5` intentos) y emisión de tokens **JWT**. | JWT + OWASP Mobile M9 |
+| **Autenticación** | `GET` | `/api/v1/auth/me/` | Obtención del perfil autenticado y metadatos de sesión del usuario activo. | Bearer JWT |
+| **Inventario** | `POST` | `/api/v1/plantas/{id}/fotos/` | Carga binaria multiparte (`RFC 7578`) y almacenamiento desacoplado en **Supabase Storage**. | Bearer JWT + Storage |
+| **Inventario** | `GET / POST` | `/api/v1/plantas/{id}/riegos/` | Consulta histórica y registro transaccional de eventos de riego por ejemplar (3NF). | Bearer JWT + Integridad SQL |
+| **Sincronización** | `POST` | `/api/v1/sync/batch/` | Consolidación atómica por lotes (*Offline-First*) de registros creados sin conexión en terreno. | Bearer JWT + Atomicidad |
+| **Fidelización** | `GET / PATCH` | `/api/v1/rachas/me/` | Consulta y actualización de rachas operativas de cuidado botánico del usuario. | Bearer JWT |
+| **Diagnóstico IA** | `POST / GET` | `/api/v1/diagnostico/`<br>`/api/v1/diagnostico/sintomas/` | Patrón BFF: análisis fitosanitario y consulta de catálogo de síntomas con respaldo *Smart Fallback*. | Bearer JWT + Aislamiento API |
 
 ## 8. Gestión de Alcance (v2.0.0), Licencia y Autoría
 
-- **Control de Alcance (*Code Freeze*):** La versión **2.0.0** consolida la estabilidad operativa del ciclo de captura, identificación híbrida (*Smart Fallback*), agenda cronológica y sincronización *Offline-First*. Las operaciones destructivas de entidades (eliminación física de ejemplares con borrado en cascada de alarmas locales) se encuentran planificadas en el *Backlog* evolutivo de la versión **2.1**.
-- **Licencia y Sostenibilidad:** Proyecto distribuido bajo los términos establecidos en el archivo `LICENSE` del repositorio. Ingeniería y desarrollo *full-stack* orientados a la gestión botánica sostenible del **Vivero Las Acacias**, operando sobre arquitectura *Cloud-Native* a **$0 USD** de costo operacional.
+- **Control de Alcance (*Code Freeze* v2.0.0):** Esta liberación consolida la estabilidad productiva del núcleo operativo: autenticación multifactor (**2FA/JWT**), identificación botánica y fitosanitaria híbrida (**BFF + *Smart Fallback***), bitácora de riegos con notificaciones locales y sincronización por lotes (*Offline-First* vía `/api/v1/sync/batch/`). Con el objetivo de resguardar la integridad referencial en **PostgreSQL (3NF)** y evitar notificaciones huérfanas en el sistema operativo Android, las operaciones destructivas de eliminación física de ejemplares con borrado en cascada (*hard delete*) se encuentran formalmente planificadas en el *Backlog* evolutivo de la versión **2.1**.
+- **Licencia y Sostenibilidad Operativa:** Software distribuido bajo los términos legales establecidos en el archivo `LICENSE` en la raíz de este repositorio. Su arquitectura *Cloud-Native* (**Render Cloud + Supabase + Brevo API**) garantiza una operación continua a **$0 USD** de costo de infraestructura recurrente, asegurando viabilidad económica real para el **Vivero Las Acacias**.
+- **Autoría e Ingeniería del Proyecto:** Arquitectura, desarrollo *full-stack* (React Native / Expo SDK + Django REST Framework), aseguramiento de calidad (**ISO/IEC 25010**) y documentación técnica elaborados como solución tecnológica aplicada para la gestión botánica sostenible del **Vivero Las Acacias** (Proyecto de Título — **Duoc UC**).

@@ -3,21 +3,26 @@
  * Próximos 14 días agrupados (Atrasadas / Hoy / Mañana / fecha). La frecuencia de cada
  * planta ya está ajustada a su luz. Funciona offline: el riego se guarda en SQLite y se
  * sincroniza al volver la red (SC-02).
+ * v2.1: tema dinámico, tarjeta de clima local y háptico.
  */
 import React, { useMemo, useState } from 'react';
-import { Alert, RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, RefreshControl, SectionList, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ConnectionBanner from '../components/ConnectionBanner';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
 import MascotaWidget from '../components/MascotaWidget';
 import PlantThumb from '../components/PlantThumb';
+import WeatherCard from '../components/WeatherCard';
 import { useNotifications } from '../context/NotificationsContext';
 import { usePlants } from '../context/PlantsContext';
-import { baseStyles, colors, radius, spacing } from '../theme/theme';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import { radius, spacing } from '../theme/theme';
+import { haptic } from '../utils/haptics';
 import { buildSchedule } from '../utils/schedule';
 
 function ScheduleRow({ item, onWater }) {
+  const styles = useThemedStyles(makeStyles);
   const [busy, setBusy] = useState(false);
   const { plant, offset, projected } = item;
   const actionable = !projected && offset <= 0;
@@ -37,7 +42,9 @@ function ScheduleRow({ item, onWater }) {
       <PlantThumb uri={plant.foto_url} size={38} radius={11} iconSize={18} />
 
       <View style={styles.rowInfo}>
-        <Text style={styles.rowName} numberOfLines={1}>{plant.nombre_comun}</Text>
+        <Text style={styles.rowName} numberOfLines={1}>
+          {plant.nombre_comun}
+        </Text>
         <Text style={styles.rowSub} numberOfLines={1}>
           {projected ? 'Estimado' : `Cada ${plant.frecuencia_riego_dias} días`}
           {plant.ubicacion ? ` · ${plant.ubicacion === 'exterior' ? 'Exterior' : 'Interior'}` : ''}
@@ -73,6 +80,8 @@ export default function WateringScheduleScreen() {
     markWatered,
   } = usePlants();
   const { supported, enabled, hour } = useNotifications();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const sections = useMemo(() => buildSchedule(plants), [plants]);
 
@@ -83,7 +92,7 @@ export default function WateringScheduleScreen() {
 
   if (error && plants.length === 0) {
     return (
-      <View style={baseStyles.screen}>
+      <View style={styles.screen}>
         <ErrorState message={error} onRetry={reload} />
       </View>
     );
@@ -104,11 +113,13 @@ export default function WateringScheduleScreen() {
 
   const handleAlimentar = () => {
     if (pendingItems.length === 0) {
+      haptic('alert');
       Alert.alert('Todo regado', 'No tienes riegos pendientes por ahora.');
       return;
     }
     const names = pendingItems.map((i) => i.plant.nombre_comun);
-    const list = names.length > 4 ? `${names.slice(0, 4).join(', ')} y ${names.length - 4} más` : names.join(', ');
+    const list =
+      names.length > 4 ? `${names.slice(0, 4).join(', ')} y ${names.length - 4} más` : names.join(', ');
     Alert.alert(
       'Registrar riegos',
       `¿Ya regaste ${pendingItems.length === 1 ? 'esta planta' : `estas ${pendingItems.length} plantas`}?\n${list}`,
@@ -143,12 +154,13 @@ export default function WateringScheduleScreen() {
           </Text>
         </View>
       )}
+      <WeatherCard plants={plants} />
       <ConnectionBanner isOnline={isOnline} pendingCount={pendingCount} source={source} />
     </View>
   );
 
   return (
-    <View style={baseStyles.screen}>
+    <View style={styles.screen}>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.key}
@@ -175,7 +187,8 @@ export default function WateringScheduleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => ({
+  screen: { flex: 1, backgroundColor: colors.background },
   listContent: { padding: spacing.lg, paddingBottom: 110 },
   header: { marginBottom: spacing.sm },
   summary: { fontSize: 15, fontWeight: '700', color: colors.text },
@@ -198,7 +211,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.accentTint,
   },
-  rowProjected: { backgroundColor: '#FAFAFA', borderWidth: 1, borderColor: '#EEEEEE' },
+  rowProjected: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.tint },
   rowInfo: { flex: 1 },
   rowName: { fontSize: 14, fontWeight: '600', color: colors.text },
   rowSub: { fontSize: 11, color: colors.textMuted, marginTop: 2 },

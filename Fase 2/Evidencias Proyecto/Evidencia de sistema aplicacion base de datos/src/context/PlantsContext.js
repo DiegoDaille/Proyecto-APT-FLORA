@@ -22,12 +22,15 @@ import useNetworkStatus from '../hooks/useNetworkStatus';
 import { fetchPlants, guardarPlantaEnJardin } from '../services/plantService';
 import { flushQueue } from '../services/syncService';
 import { uploadPendingPhotos } from '../services/photoUploadService';
+import { haptic } from '../utils/haptics';
+import { countPendingOperations, registerWatering, upsertPlants } from '../services/db';
 import {
-  countPendingOperations,
-  getPlants,
-  registerWatering,
-  upsertPlants,
-} from '../services/db';
+  countDeletedPlants,
+  getVisiblePlants,
+  purgeExpiredTrash,
+  restorePlant as restoreFromTrash,
+  softDeletePlant,
+} from '../services/plantTrash';
 
 const PlantsContext = createContext(null);
 
@@ -41,11 +44,21 @@ export function PlantsProvider({ children }) {
   const [error, setError] = useState(null);
   const [source, setSource] = useState('cache'); // 'api' | 'mock' | 'cache'
   const [pendingCount, setPendingCount] = useState(0);
-  const [lastWatering, setLastWatering] = useState(null);
+  const [lastWatering, setLastWatering] = useState(null); // evento WATERED para PetContext
+  const [trashCount, setTrashCount] = useState(0);
+
   const wasOffline = useRef(false);
 
   const refreshPending = useCallback(async () => {
     setPendingCount(await countPendingOperations());
+  }, []);
+
+  const refreshTrash = useCallback(async () => {
+    try {
+      setTrashCount(await countDeletedPlants());
+    } catch (error) {
+      console.warn('[Plants] papelera:', error?.message);
+    }
   }, []);
 
   /** Envía la cola al backend, sube las fotos pendientes y actualiza el contador. */
@@ -53,10 +66,14 @@ export function PlantsProvider({ children }) {
     let step = 'flushQueue';
     try {
       const { offline } = await flushQueue();
-      step = 'uploadPendingPhotos';
-      if (!offline) await uploadPendingPhotos();
+      if (!offline) {
+        step = 'purgeExpiredTrash';
+        await purgeExpiredTrash(); // elimina en el servidor lo que lleva más de 7 días en la papelera
+        step = 'uploadPendingPhotos';
+        await uploadPendingPhotos();
+      }
       step = 'getPlants';
-      setPlants(await getPlants()); // ids pueden cambiar al sincronizar
+      setPlants(await getVisiblePlants()); // ids pueden cambiar al sincronizar
     } catch (e) {
       console.warn(
         `[Plants] Falló la sincronización en "${step}":`,
@@ -65,14 +82,15 @@ export function PlantsProvider({ children }) {
       );
     } finally {
       await refreshPending();
+      await refreshTrash();
     }
-  }, [refreshPending]);
+  }, [refreshPending, refreshTrash]);
 
   const load = useCallback(async () => {
     setError(null);
     try {
       // 1) Caché local primero
-      const cached = await getPlants();
+      const cached = await getVisiblePlants();
       if (cached.length > 0) {
         setPlants(cached);
         setIsLoading(false);
@@ -84,7 +102,7 @@ export function PlantsProvider({ children }) {
           allowMock: cached.length === 0,
         });
         await upsertPlants(remote, { prune: src === 'api' });
-        setPlants(await getPlants());
+        setPlants(await getVisiblePlants());
         setSource(src);
       } catch (networkError) {
         // 3) Sin red: si hay caché seguimos con ella; si no, es un error real
@@ -93,13 +111,14 @@ export function PlantsProvider({ children }) {
       }
 
       await refreshPending();
+      await refreshTrash();
     } catch (e) {
       setError(e?.message ?? 'No se pudo cargar tu jardín.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [refreshPending]);
+  }, [refreshPending, refreshTrash]);
 
   const refresh = useCallback(() => {
     setIsRefreshing(true);
@@ -110,8 +129,9 @@ export function PlantsProvider({ children }) {
   const markWatered = useCallback(
     async (plantId) => {
       await registerWatering(plantId, new Date().toISOString());
-      setLastWatering({ plantId, at: Date.now() });
-      setPlants(await getPlants());
+      setLastWatering({ plantId, at: Date.now() }); // objeto nuevo en cada riego: dispara la celebración
+      haptic('watered'); // vibración de éxito (nunca lanza)
+      setPlants(await getVisiblePlants());
       await refreshPending();
       if (isOnline) syncNow();
     },
@@ -122,12 +142,32 @@ export function PlantsProvider({ children }) {
   const addPlant = useCallback(
     async (data) => {
       const localId = await guardarPlantaEnJardin(data);
-      setPlants(await getPlants());
+      setPlants(await getVisiblePlants());
       await refreshPending();
       if (isOnline) syncNow();
       return localId;
     },
     [isOnline, refreshPending, syncNow]
+  );
+
+  /** Mueve una planta a la papelera (se puede restaurar durante 7 días). */
+  const deletePlant = useCallback(
+    async (plantId) => {
+      await softDeletePlant(plantId);
+      setPlants(await getVisiblePlants());
+      await refreshTrash();
+      haptic('alert');
+    },
+    [refreshTrash]
+  );
+
+  const restorePlant = useCallback(
+    async (plantId) => {
+      await restoreFromTrash(plantId);
+      setPlants(await getVisiblePlants());
+      await refreshTrash();
+    },
+    [refreshTrash]
   );
 
   // Carga inicial al autenticarse / limpieza al cerrar sesión
@@ -162,14 +202,18 @@ export function PlantsProvider({ children }) {
       error,
       source,
       pendingCount,
+      lastWatering,
+      trashCount,
       isOnline,
       refresh,
       reload: load,
       markWatered,
       addPlant,
-      lastWatering,
+      deletePlant,
+      restorePlant,
+      refreshTrash,
     }),
-    [plants, isLoading, isRefreshing, error, source, pendingCount, isOnline, refresh, load, markWatered, addPlant]
+    [plants, isLoading, isRefreshing, error, source, pendingCount, lastWatering, trashCount, isOnline, refresh, load, markWatered, addPlant, deletePlant, restorePlant, refreshTrash]
   );
 
   return <PlantsContext.Provider value={value}>{children}</PlantsContext.Provider>;

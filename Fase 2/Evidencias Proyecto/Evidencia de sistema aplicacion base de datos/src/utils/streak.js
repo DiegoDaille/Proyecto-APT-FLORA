@@ -1,9 +1,10 @@
 /**
- * streak.js - Rachas de cuidado a partir del historial de riegos.
+ * streak.js - Rachas de cuidado a partir del historial de actividad.
  *
- * Regla: un día "cuenta" si se registró al menos un riego. La racha es la cantidad de
- * días consecutivos que termina HOY (si ya regaste) o AYER (si hoy aún puedes hacerlo).
- * Si pasa un día completo sin riego, la racha vuelve a 0.
+ * Regla: un día "cuenta" si hubo al menos un riego O una foto de seguimiento ("Antes vs. Hoy").
+ * (PetContext junta ambas listas; aquí solo importa que sean días 'YYYY-MM-DD'.)
+ * La racha es la cantidad de días consecutivos que termina HOY (si ya hubo actividad) o AYER
+ * (si hoy aún puedes cuidar). Si pasa un día completo sin actividad, la racha vuelve a 0.
  */
 import { addDays, dayKeyToDate, diffInDays, localDayKey, startOfDay } from './dates';
 
@@ -12,7 +13,7 @@ export const EMPTY_STREAK = { current: 0, best: 0, doneToday: false, atRisk: fal
 const WEEK_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 /**
- * @param {string[]} dayKeys Días con riego ('YYYY-MM-DD', hora local)
+ * @param {string[]} dayKeys Días con actividad ('YYYY-MM-DD', hora local); pueden venir repetidos
  * @param {Date} now
  */
 export function computeStreak(dayKeys, now = new Date()) {
@@ -20,7 +21,7 @@ export function computeStreak(dayKeys, now = new Date()) {
   const today = startOfDay(now);
   const doneToday = days.has(localDayKey(today));
 
-  // Racha actual: hacia atrás desde hoy (si ya regó) o desde ayer
+  // Racha actual: hacia atrás desde hoy (si ya hubo actividad) o desde ayer
   let cursor = doneToday ? today : addDays(today, -1);
   let current = 0;
   while (days.has(localDayKey(cursor))) {
@@ -51,7 +52,7 @@ export function computeStreak(dayKeys, now = new Date()) {
     current,
     best: Math.max(best, current),
     doneToday,
-    atRisk: current > 0 && !doneToday, // la racha vive, pero hoy falta regar
+    atRisk: current > 0 && !doneToday, // la racha vive, pero hoy falta cuidar (regar o fotografiar)
     week,
   };
 }

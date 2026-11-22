@@ -1,27 +1,20 @@
 /**
  * AppNavigator.js - Navegación principal para usuarios autenticados.
  *
- * Stack nativo (nivel superior)
- *   ├─ "Tabs"         -> pestañas: Jardín | Escanear | Agenda | Perfil
- *   └─ "PlantHistory" -> detalle e historial de una planta (se abre desde la tarjeta del Jardín)
- *
- * PlantHistory vive en un stack POR ENCIMA de las pestañas porque "Jardín" es una pestaña
- * (no tiene stack propio). Las demás rutas (ej. "Diagnostico") siguen resolviéndose en los
- * navegadores superiores, igual que antes.
+ * Solo las 4 pestañas: Jardín | Escanear | Agenda | Perfil.
+ * Las pantallas que se abren por encima (Diagnostico, PlantHistory, PlantProgress)
+ * se registran en RootNavigator.MainStack.
  */
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
-import PlantHistoryScreen from '../screens/PlantHistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ScanStack from './ScanStack';
 import { colors, typography } from '../theme/theme';
 import WateringScheduleScreen from '../screens/WateringScheduleScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
 
 // Definidos fuera del componente para no recrearlos en cada render
 const TABS = [
@@ -31,7 +24,7 @@ const TABS = [
   { name: 'Perfil', label: 'Perfil', component: ProfileScreen, icon: 'person', iconOff: 'person-outline' },
 ];
 
-function Tabs() {
+export default function AppNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
@@ -59,23 +52,5 @@ function Tabs() {
         />
       ))}
     </Tab.Navigator>
-  );
-}
-
-export default function AppNavigator() {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
-      <Stack.Screen
-        name="PlantHistory"
-        component={PlantHistoryScreen}
-        options={{
-          title: 'Mi planta',
-          headerStyle: { backgroundColor: colors.surface },
-          headerTitleStyle: { color: colors.text, fontWeight: typography.weight.bold },
-          headerShadowVisible: false,
-        }}
-      />
-    </Stack.Navigator>
   );
 }

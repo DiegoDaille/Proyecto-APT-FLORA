@@ -13,6 +13,7 @@ import DynamicPlantMascot from '../components/DynamicPlantMascot';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
 import PlantCard from '../components/PlantCard';
+import WeatherCard from '../components/WeatherCard';
 import WeekStrip from '../components/WeekStrip';
 import { useAuth } from '../context/AuthContext';
 import { usePet } from '../context/PetContext';
@@ -80,6 +81,9 @@ export default function HomeScreen({ navigation }) {
           </Text>
 
           <ConnectionBanner isOnline={isOnline} pendingCount={pendingCount} source={source} />
+
+          {/* Clima local y consejo de riego (pide la ubicación solo al tocar el botón) */}
+          <WeatherCard plants={plants} />
 
           {/* Mascota virtual y racha */}
           <View style={styles.mascotCard}>

@@ -1,39 +1,49 @@
 /**
- * ProfileScreen.js - Perfil con datos reales, etapa de Espina y logros.
+ * ProfileScreen.js - Perfil con datos reales, etapa de Espina, logros, temas y papelera.
  * Ubicación: src/screens/ProfileScreen.js
  *
  * Todo sale de datos reales (sin valores de relleno):
- *   - Racha y etapa de la mascota: PetContext
- *   - Plantas y estado de sincronización: PlantsContext
+ *   - Racha y etapa de la mascota: PetContext (riegos + fotos de "Antes vs. Hoy")
+ *   - Plantas, papelera y estado de sincronización: PlantsContext
  *   - Días con riego: historial local (SQLite), se relee cada vez que se abre la pestaña
  *   - Cuenta y cierre de sesión: AuthContext
+ *   - v2.3: selector de temas (se desbloquean por rango) y logros secretos (Easter eggs)
  *
  * Panel oculto de demostración: 5 toques seguidos sobre el texto de la versión (final de la pantalla).
+ * Logro secreto "Cosquillas": 7 toques seguidos sobre el avatar.
  */
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DemoPanel from '../components/DemoPanel';
 import SecretTapArea from '../components/Secrettaparea';
+import ThemePicker from '../components/ThemePicker';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { usePet } from '../context/PetContext';
 import { usePlants } from '../context/PlantsContext';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import { getWateringDays } from '../services/db';
-import { colors, radius, shadow, spacing, typography } from '../theme/theme';
+import { findSecretsFromData, SECRETS, unlockSecrets } from '../services/secretAchievements';
+import { radius, shadow, spacing, typography } from '../theme/theme';
+import { haptic } from '../utils/haptics';
 import { STAGES } from '../utils/petFsm';
 
 const GOLD = '#F9A825';
 const WATER = '#29B6F6';
 const FIRE = '#FF6F00';
 const DEFAULT_PET_NAME = 'espina';
+const AVATAR_TAPS = 7;
+const AVATAR_TAP_WINDOW_MS = 1500;
+// true: los logros secretos bloqueados muestran una pista críptica. false: solo "???".
+const SHOW_SECRET_RIDDLES = true;
 
 const plural = (n, singular, pluralForm) => (n === 1 ? singular : pluralForm);
 
 // metric: de dónde sale el avance de cada logro
-const ACHIEVEMENTS = [
+const buildAchievements = (colors) => [
   { id: 'brote', title: 'Primer brote', text: 'Agrega tu primera planta', icon: 'leaf', color: colors.primary, metric: 'plants', target: 1 },
   { id: 'jardin', title: 'Jardín pequeño', text: 'Ten 3 plantas en tu jardín', icon: 'flower', color: colors.accent, metric: 'plants', target: 3 },
   { id: 'coleccion', title: 'Coleccionista', text: 'Ten 5 plantas en tu jardín', icon: 'earth', color: colors.primaryDark, metric: 'plants', target: 5 },
@@ -46,26 +56,73 @@ const ACHIEVEMENTS = [
   { id: 'nombre', title: 'Mascota con nombre', text: 'Ponle un nombre propio a tu mascota', icon: 'heart', color: colors.accent, metric: 'named', target: 1 },
 ];
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { user, signOut } = useAuth();
   const { name, stage, streak } = usePet();
-  const { plants, isOnline, pendingCount } = usePlants();
+  const { plants, isOnline, pendingCount, trashCount } = usePlants();
   const { supported, enabled, hour, setReminders, sendTest } = useNotifications();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [wateringDays, setWateringDays] = useState(0);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [secretIds, setSecretIds] = useState([]);
 
-  // Cada vez que se abre la pestaña se relee el historial de riegos
+  const avatarTaps = useRef(0);
+  const avatarTimer = useRef(null);
+  useEffect(() => () => clearTimeout(avatarTimer.current), []);
+
+  /** Busca logros secretos cumplidos, los guarda y avisa de los nuevos. */
+  const checkSecrets = useCallback(
+    async (extra = []) => {
+      try {
+        const candidates = [...(await findSecretsFromData()), ...extra];
+        if (name.trim().toLowerCase() === 'groot') candidates.push('groot');
+
+        const { all, fresh } = await unlockSecrets(candidates);
+        setSecretIds(all);
+
+        if (fresh.length > 0) {
+          const items = fresh.map((id) => SECRETS.find((s) => s.id === id)).filter(Boolean);
+          haptic('stageUp');
+          Alert.alert(
+            items.length === 1 ? '¡Logro secreto descubierto!' : '¡Logros secretos descubiertos!',
+            items.map((item) => `• ${item.title}: ${item.text}`).join('\n')
+          );
+        }
+      } catch (error) {
+        console.warn('[Profile] logros secretos:', error?.message);
+      }
+    },
+    [name]
+  );
+
+  // Cada vez que se abre la pestaña se relee el historial de riegos y se buscan secretos
   useFocusEffect(
     useCallback(() => {
       let alive = true;
       getWateringDays(400)
         .then((rows) => alive && setWateringDays(rows.length))
         .catch((error) => console.warn('[Profile] no se pudo leer el historial:', error?.message));
+      checkSecrets();
       return () => {
         alive = false;
       };
-    }, [streak.current, plants.length])
+    }, [streak.current, plants.length, checkSecrets])
   );
+
+  const handleAvatarTap = () => {
+    clearTimeout(avatarTimer.current);
+    avatarTaps.current += 1;
+    if (avatarTaps.current >= AVATAR_TAPS) {
+      avatarTaps.current = 0;
+      checkSecrets(['cosquillas']);
+      return;
+    }
+    haptic('tap');
+    avatarTimer.current = setTimeout(() => {
+      avatarTaps.current = 0;
+    }, AVATAR_TAP_WINDOW_MS);
+  };
 
   const bestStreak = Math.max(streak.best, streak.current);
 
@@ -76,11 +133,11 @@ export default function ProfileScreen() {
       streak: bestStreak,
       named: name.trim().toLowerCase() !== DEFAULT_PET_NAME ? 1 : 0,
     };
-    return ACHIEVEMENTS.map((item) => {
+    return buildAchievements(colors).map((item) => {
       const value = metrics[item.metric];
       return { ...item, value: Math.min(value, item.target), unlocked: value >= item.target };
     });
-  }, [plants.length, wateringDays, bestStreak, name]);
+  }, [plants.length, wateringDays, bestStreak, name, colors]);
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const nextAchievement = achievements
@@ -117,11 +174,14 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* 1. Identidad y etapa */}
         <View style={styles.headerCard}>
-          <View style={[styles.avatar, { borderColor: stage.color }]}>
-            <Text style={styles.avatarText}>
-              {user?.nombre ? user.nombre.substring(0, 2).toUpperCase() : 'FL'}
-            </Text>
-          </View>
+          {/* 7 toques seguidos al avatar: logro secreto */}
+          <Pressable onPress={handleAvatarTap} accessible={false}>
+            <View style={[styles.avatar, { borderColor: stage.color }]}>
+              <Text style={styles.avatarText}>
+                {user?.nombre ? user.nombre.substring(0, 2).toUpperCase() : 'FL'}
+              </Text>
+            </View>
+          </Pressable>
           <Text style={styles.userName}>
             {[user?.nombre, user?.apellido].filter(Boolean).join(' ') || 'Jardinero F.L.O.R.A.'}
           </Text>
@@ -135,7 +195,12 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.stageTrack}>
-            <View style={[styles.stageFill, { width: `${Math.round(stageProgress * 100)}%`, backgroundColor: stage.color }]} />
+            <View
+              style={[
+                styles.stageFill,
+                { width: `${Math.round(stageProgress * 100)}%`, backgroundColor: stage.color },
+              ]}
+            />
           </View>
 
           {nextStage ? (
@@ -230,7 +295,45 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* 4. Recordatorios de riego (notificaciones locales, HU-FLOR-015) */}
+        {/* 4. Logros secretos (Easter eggs) */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>Logros secretos</Text>
+          <Text style={styles.sectionCount}>
+            {secretIds.length} de {SECRETS.length}
+          </Text>
+        </View>
+        <View style={styles.achGrid}>
+          {SECRETS.map((secret) => {
+            const found = secretIds.includes(secret.id);
+            return (
+              <View
+                key={secret.id}
+                style={[styles.achCard, !found && styles.secretLocked]}
+                accessibilityLabel={found ? `${secret.title}: ${secret.text}` : 'Logro secreto por descubrir'}
+              >
+                <View style={[styles.achIcon, { backgroundColor: found ? secret.color : '#E0E0E0' }]}>
+                  <Ionicons
+                    name={found ? secret.icon : 'help'}
+                    size={22}
+                    color={found ? '#FFFFFF' : '#9E9E9E'}
+                  />
+                </View>
+                <Text style={styles.achTitle} numberOfLines={1}>
+                  {found ? secret.title : '???'}
+                </Text>
+                <Text style={[styles.achText, !found && styles.riddle]} numberOfLines={3}>
+                  {found ? secret.text : SHOW_SECRET_RIDDLES ? secret.riddle : 'Sigue cuidando tus plantas…'}
+                </Text>
+                {found ? <Text style={[styles.achDone, { color: colors.success }]}>¡Descubierto!</Text> : null}
+              </View>
+            );
+          })}
+        </View>
+
+        {/* 5. Temas por rango botánico */}
+        <ThemePicker />
+
+        {/* 6. Recordatorios de riego (notificaciones locales, HU-FLOR-015) */}
         <View style={styles.reminderCard}>
           <View style={styles.reminderRow}>
             <Ionicons
@@ -266,7 +369,7 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
-        {/* 5. Estado de red y sincronización */}
+        {/* 7. Estado de red y sincronización */}
         <View style={styles.statusCard}>
           <View style={styles.statusRow}>
             <Ionicons
@@ -290,7 +393,27 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 6. Cierre de sesión */}
+        {/* Papelera de plantas (eliminación suave: se pueden restaurar durante 7 días) */}
+        <TouchableOpacity
+          style={styles.trashRow}
+          onPress={() => navigation.navigate('PlantTrash')}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`Papelera de plantas, ${trashCount} ${plural(trashCount, 'planta', 'plantas')}`}
+        >
+          <Ionicons name="trash-outline" size={22} color={colors.textMuted} />
+          <View style={styles.trashText}>
+            <Text style={styles.trashTitle}>Papelera de plantas</Text>
+            <Text style={styles.trashSub}>
+              {trashCount > 0
+                ? `${trashCount} ${plural(trashCount, 'planta', 'plantas')} que puedes restaurar`
+                : 'Vacía'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        {/* 8. Cierre de sesión */}
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}
@@ -313,7 +436,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => ({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.md, paddingBottom: spacing.xl },
   bold: { fontWeight: typography.weight.bold },
@@ -401,7 +524,7 @@ const styles = StyleSheet.create({
   },
   nextText: { flex: 1, marginLeft: spacing.sm, fontSize: typography.size.sm, color: colors.text },
 
-  achGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  achGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: spacing.sm },
   achCard: {
     width: '48.5%',
     backgroundColor: colors.surface,
@@ -413,6 +536,8 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   achCardLocked: { backgroundColor: '#FAFAFA' },
+  secretLocked: { backgroundColor: colors.tint, borderStyle: 'dashed', borderColor: colors.border },
+  riddle: { fontStyle: 'italic' },
   achIcon: {
     width: 44,
     height: 44,
@@ -470,6 +595,20 @@ const styles = StyleSheet.create({
   offlineText: { color: colors.warning, fontWeight: typography.weight.bold },
   pendingText: { fontSize: typography.size.xs, color: colors.warning, marginTop: 2 },
 
+  trashRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderColor: colors.tint,
+    borderWidth: 1,
+    ...shadow.sm,
+  },
+  trashText: { flex: 1, marginHorizontal: spacing.sm },
+  trashTitle: { fontSize: typography.size.sm, fontWeight: typography.weight.bold, color: colors.text },
+  trashSub: { fontSize: typography.size.xs, color: colors.textMuted, marginTop: 2 },
   logoutButton: {
     flexDirection: 'row',
     backgroundColor: colors.dangerTint,

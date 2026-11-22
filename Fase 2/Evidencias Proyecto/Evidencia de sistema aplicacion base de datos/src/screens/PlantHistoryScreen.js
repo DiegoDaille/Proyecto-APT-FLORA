@@ -4,12 +4,13 @@
  * estadísticas y la línea de tiempo de riegos (watering_log). Funciona sin conexión.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import PlantThumb from '../components/PlantThumb';
 import PrimaryButton from '../components/PrimaryButton';
 import { usePlants } from '../context/PlantsContext';
 import { getWateringHistory } from '../services/historyDb';
+import { TRASH_DAYS } from '../services/plantTrash';
 import { baseStyles, colors, radius, spacing } from '../theme/theme';
 import { addDays, localDayKey } from '../utils/dates';
 import { getWateringStatus } from '../utils/watering';
@@ -75,7 +76,7 @@ function TimelineItem({ row, index, isLast }) {
 
 export default function PlantHistoryScreen({ route, navigation }) {
   const { plantId } = route.params ?? {};
-  const { plants, markWatered, lastWatering } = usePlants();
+  const { plants, markWatered, lastWatering, deletePlant, restorePlant } = usePlants();
   const plant = plants.find((item) => item.id === plantId);
 
   const [history, setHistory] = useState([]);
@@ -126,6 +127,34 @@ export default function PlantHistoryScreen({ route, navigation }) {
     } finally {
       setWatering(false);
     }
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Eliminar planta',
+      `¿Quieres eliminar ${plant.nombre_comun}? Se moverá a la papelera y podrás restaurarla durante ${TRASH_DAYS} días. Tu racha y tu historial de riegos se conservan.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            const id = plant.id;
+            const name = plant.nombre_comun;
+            navigation.goBack(); // sale antes de que la planta desaparezca de la lista
+            try {
+              await deletePlant(id);
+              Alert.alert('Planta eliminada', `${name} está en la papelera.`, [
+                { text: 'Deshacer', onPress: () => restorePlant(id) },
+                { text: 'Aceptar' },
+              ]);
+            } catch (error) {
+              Alert.alert('No se pudo eliminar', 'Inténtalo de nuevo.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const subtitle = [
@@ -207,6 +236,20 @@ export default function PlantHistoryScreen({ route, navigation }) {
           variant="outline"
           onPress={() => navigation.navigate('Diagnostico', { plant })}
           style={isDue ? styles.second : undefined}
+        />
+        <PrimaryButton
+          title="Antes vs. Hoy"
+          variant="outline"
+          icon="images-outline"
+          onPress={() => navigation.navigate('PlantProgress', { plant })}
+          style={styles.second}
+        />
+        <PrimaryButton
+          title="Eliminar planta"
+          variant="danger"
+          icon="trash-outline"
+          onPress={handleDelete}
+          style={styles.second}
         />
       </View>
 

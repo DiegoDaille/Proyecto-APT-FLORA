@@ -8,6 +8,7 @@ import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import PrimaryButton from '../components/PrimaryButton';
+import SeasonalClimateCard from '../components/SeasonalClimateCard';
 import { usePlants } from '../context/PlantsContext';
 import { baseStyles, colors, radius, spacing } from '../theme/theme';
 import { evaluateCompatibility } from '../utils/compatibility';
@@ -97,6 +98,16 @@ export default function CompatibilityResultScreen({ route, navigation }) {
         </View>
       ))}
 
+      {/* Clima estacional (hemisferio sur, hora de Santiago): se adapta al veredicto del escaneo */}
+      <SeasonalClimateCard
+        style={styles.seasonal}
+        species={species}
+        verdict={result.verdict}
+        ubicacion={ubicacion}
+        light={light.nivel}
+        baseDays={result.frecuenciaAjustadaDias}
+      />
+
       <PrimaryButton
         title="Guardar en mi jardín"
         onPress={handleSave}
@@ -163,6 +174,7 @@ const styles = StyleSheet.create({
   tipRow: { flexDirection: 'row', marginBottom: spacing.sm },
   tipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, marginTop: 7, marginRight: spacing.sm },
   tipText: { flex: 1, fontSize: 13, color: '#333333', lineHeight: 19 },
+  seasonal: { marginTop: spacing.lg },
   cta: { marginTop: spacing.lg },
   second: { marginTop: spacing.sm },
   attributionContainer: {

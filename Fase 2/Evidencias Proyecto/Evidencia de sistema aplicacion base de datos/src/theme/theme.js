@@ -1,27 +1,29 @@
 /**
  * theme.js - Sistema de Diseño y Tokens de F.L.O.R.A.
+ * Los colores de aquí son el tema base ("Hoja"). Los temas desbloqueables viven en themes.js
+ * y se consumen con useTheme()/useThemedStyles() (ThemeContext).
  */
 import { StyleSheet, Platform } from 'react-native';
 
 export const colors = {
   // Marca Principal
-  primary: '#7BA44D',        // Verde Hoja
+  primary: '#7BA44D', // Verde Hoja
   primaryLight: '#95BC68',
-  primaryDark: '#2E5016',    // Ratio de Contraste > 7:1 sobre fondos claros
-  tint: '#F0F7E8',           // Verde muy suave para cards/contenedores
+  primaryDark: '#2E5016', // Ratio de Contraste > 7:1 sobre fondos claros
+  tint: '#F0F7E8', // Verde muy suave para cards/contenedores
   sprout: '#B7D86A',
 
   // Acentos y Marca Secundaria
-  accent: '#A84B7B',         // Rosa ajustado para mayor contraste (WCAG AA > 4.5:1)
+  accent: '#A84B7B', // Rosa ajustado para mayor contraste (WCAG AA > 4.5:1)
   accentDark: '#783155',
   accentTint: '#FBEEF1',
-  ink: '#1A1A1A',            // Botones/Elementos oscuros
+  ink: '#1A1A1A', // Botones/Elementos oscuros
 
   // Superficies y Tipografía Base
-  background: '#F9FBF7',     // Fondo suave que reduce fatiga visual
+  background: '#F9FBF7', // Fondo suave que reduce fatiga visual
   surface: '#FFFFFF',
-  text: '#1A1A1A',           // Alto contraste (> 14:1)
-  textMuted: '#595959',      // Ajustado desde #8A8A8A para cumplir ratio 4.5:1 (WCAG AA)
+  text: '#1A1A1A', // Alto contraste (> 14:1)
+  textMuted: '#595959', // Ajustado desde #8A8A8A para cumplir ratio 4.5:1 (WCAG AA)
   border: '#E2B2C5',
 
   // Estados Semánticos (ISO/IEC 25010 - Operabilidad)
@@ -34,13 +36,13 @@ export const colors = {
   overlay: 'rgba(0, 0, 0, 0.5)',
 };
 
-export const spacing = { 
-  xs: 4, 
-  sm: 8, 
-  md: 16, 
-  lg: 24, 
-  xl: 32, 
-  xxl: 48 
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
 };
 
 export const layout = {
@@ -49,23 +51,23 @@ export const layout = {
   containerMaxWidth: 600,
 };
 
-export const radius = { 
-  xs: 4, 
-  sm: 8, 
-  md: 14, 
-  lg: 20, 
-  pill: 999 
+export const radius = {
+  xs: 4,
+  sm: 8,
+  md: 14,
+  lg: 20,
+  pill: 999,
 };
 
 export const typography = {
   family: Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' }),
-  size: { 
-    xs: 12, 
-    sm: 14, 
-    md: 16, 
-    lg: 20, 
-    xl: 26, 
-    xxl: 34 
+  size: {
+    xs: 12,
+    sm: 14,
+    md: 16,
+    lg: 20,
+    xl: 26,
+    xxl: 34,
   },
   lineHeight: {
     xs: 16,
@@ -75,11 +77,11 @@ export const typography = {
     xl: 34,
     xxl: 42,
   },
-  weight: { 
-    regular: '400', 
-    medium: '500', 
+  weight: {
+    regular: '400',
+    medium: '500',
     semibold: '600',
-    bold: '700' 
+    bold: '700',
   },
 };
 
@@ -117,30 +119,30 @@ export const shadow = {
 };
 
 export const baseStyles = StyleSheet.create({
-  screen: { 
-    flex: 1, 
-    backgroundColor: colors.background 
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  centered: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justify: 'center' 
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center', // corregido: antes decía "justify", que React Native ignora
   },
-  content: { 
-    padding: spacing.md 
+  content: {
+    padding: spacing.md,
   },
-  title: { 
-    fontSize: typography.size.xl, 
+  title: {
+    fontSize: typography.size.xl,
     lineHeight: typography.lineHeight.xl,
-    fontWeight: typography.weight.bold, 
-    color: colors.primaryDark 
+    fontWeight: typography.weight.bold,
+    color: colors.primaryDark,
   },
-  subtitle: { 
-    fontSize: typography.size.md, 
+  subtitle: {
+    fontSize: typography.size.md,
     lineHeight: typography.lineHeight.md,
-    color: colors.accent, 
+    color: colors.accent,
     marginTop: spacing.xs,
-    fontWeight: typography.weight.medium
+    fontWeight: typography.weight.medium,
   },
   body: {
     fontSize: typography.size.md,

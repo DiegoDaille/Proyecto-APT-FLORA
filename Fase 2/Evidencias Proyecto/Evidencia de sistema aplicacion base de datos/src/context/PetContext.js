@@ -1,10 +1,13 @@
 /**
  * PetContext.js - Mascota virtual "Espina" (HU-FLOR-004).
  *
- * - Rachas REALES: se calculan desde el historial de riegos en SQLite (watering_log).
+ * - Rachas REALES: se calculan con los días con riego (watering_log) Y los días con foto de
+ *   seguimiento (plant_photos, comparador "Antes vs. Hoy"). Un día cuenta una sola vez.
  * - Ánimo: FSM (utils/petFsm.js) alimentada por el estado de riego de las plantas
  *   y por el evento WATERED que emite PlantsContext al regar.
  * - Etapa evolutiva: según la mejor racha lograda.
+ * - Háptico de subida de etapa. (El háptico de "riego registrado" lo dispara PlantsContext.)
+ * - refreshStreak(): lo llama el comparador al guardar una foto; devuelve si la racha subió.
  * - Funciona 100% offline.
  */
 import React, {
@@ -20,6 +23,8 @@ import React, {
 import { AppState } from 'react-native';
 import { DEMO_SEED_STREAK_DAYS, FORCE_MOCKS, REAL_DATA } from '../config/appConfig';
 import { getMeta, getWateringDays, seedDemoStreak, setMeta } from '../services/db';
+import { getPhotoDays } from '../services/plantPhotosDb';
+import { haptic } from '../utils/haptics';
 import { EVENTS, getStage, MOOD_META, MOODS, snapshotEvent, transition } from '../utils/petFsm';
 import { computeStreak, EMPTY_STREAK } from '../utils/streak';
 import { getWateringStatus } from '../utils/watering';
@@ -29,6 +34,7 @@ import { usePlants } from './PlantsContext';
 const DEFAULT_PET_NAME = 'Espina';
 const MAX_NAME_LENGTH = 20;
 const CELEBRATION_MS = 2500;
+const EVOLUTION_WINDOW_MS = 4000; // tras una acción de cuidado, una subida de etapa cuenta como "evolución"
 
 const PetContext = createContext(null);
 
@@ -46,15 +52,58 @@ export function PetProvider({ children }) {
   const [state, dispatch] = useReducer(moodReducer, { mood: MOODS.FELIZ });
 
   const celebrationTimer = useRef(null);
+  const recentActionTimer = useRef(null);
+  const recentActionRef = useRef(false);
+  const prevLevelRef = useRef(null);
   const snapshotRef = useRef(EVENTS.CLEAR);
+  const streakRef = useRef(EMPTY_STREAK);
+  streakRef.current = streak;
 
+  /** Días con riego + días con foto de seguimiento -> racha. Devuelve la racha calculada. */
   const loadStreak = useCallback(async () => {
     try {
-      setStreak(computeStreak(await getWateringDays(), new Date()));
+      const [wateringDays, photoDays] = await Promise.all([
+        getWateringDays(),
+        getPhotoDays().catch((error) => {
+          console.warn('[Pet] No se pudieron leer las fotos:', error?.message);
+          return [];
+        }),
+      ]);
+      const next = computeStreak([...wateringDays, ...photoDays], new Date());
+      setStreak(next);
+      return next;
     } catch (error) {
       console.warn('[Pet] No se pudo calcular la racha:', error);
+      return null;
     }
   }, []);
+
+  /** Abre una ventana corta en la que una subida de etapa se considera causada por un cuidado. */
+  const markRecentAction = useCallback(() => {
+    recentActionRef.current = true;
+    clearTimeout(recentActionTimer.current);
+    recentActionTimer.current = setTimeout(() => {
+      recentActionRef.current = false;
+    }, EVOLUTION_WINDOW_MS);
+  }, []);
+
+  /**
+   * Recalcula la racha tras guardar una foto de seguimiento.
+   * @returns {Promise<{increased: boolean, current: number, levelUp: boolean, stageName: string}>}
+   */
+  const refreshStreak = useCallback(async () => {
+    const before = streakRef.current;
+    markRecentAction();
+    const next = await loadStreak();
+    if (!next) {
+      return { increased: false, current: before.current, levelUp: false, stageName: getStage(before.best).name };
+    }
+    const increased = next.current > before.current;
+    const levelUp = getStage(next.best).level > getStage(before.best).level;
+    // Si hay subida de etapa, el doble pulso lo dispara el efecto de más abajo (evita vibrar dos veces)
+    if (increased && !levelUp) haptic('watered');
+    return { increased, current: next.current, levelUp, stageName: getStage(next.best).name };
+  }, [loadStreak, markRecentAction]);
 
   // Inicialización al autenticarse
   useEffect(() => {
@@ -107,12 +156,13 @@ export function PetProvider({ children }) {
     dispatch(currentSnapshot);
   }, [currentSnapshot]);
 
-  // Riego registrado -> celebración + racha actualizada
+  // Riego registrado -> celebración + racha actualizada (el háptico lo da PlantsContext.markWatered)
   useEffect(() => {
     if (!lastWatering) return undefined;
 
     dispatch(EVENTS.WATERED);
     loadStreak();
+    markRecentAction();
 
     clearTimeout(celebrationTimer.current);
     celebrationTimer.current = setTimeout(() => {
@@ -121,9 +171,15 @@ export function PetProvider({ children }) {
     }, CELEBRATION_MS);
 
     return undefined;
-  }, [lastWatering, loadStreak]);
+  }, [lastWatering, loadStreak, markRecentAction]);
 
-  useEffect(() => () => clearTimeout(celebrationTimer.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(celebrationTimer.current);
+      clearTimeout(recentActionTimer.current);
+    },
+    []
+  );
 
   const renamePet = useCallback(async (newName) => {
     const clean = newName.trim().slice(0, MAX_NAME_LENGTH);
@@ -138,6 +194,15 @@ export function PetProvider({ children }) {
   }, []);
 
   const stage = getStage(streak.best);
+
+  // Subida de etapa causada por un cuidado (riego o foto) -> doble pulso.
+  // No vibra al cargar la racha guardada al abrir la app.
+  useEffect(() => {
+    if (prevLevelRef.current !== null && stage.level > prevLevelRef.current && recentActionRef.current) {
+      haptic('stageUp');
+    }
+    prevLevelRef.current = stage.level;
+  }, [stage.level]);
 
   const statusText = useMemo(() => {
     switch (state.mood) {
@@ -162,8 +227,9 @@ export function PetProvider({ children }) {
       statusText,
       counts,
       renamePet,
+      refreshStreak,
     }),
-    [name, stage, state.mood, streak, statusText, counts, renamePet]
+    [name, stage, state.mood, streak, statusText, counts, renamePet, refreshStreak]
   );
 
   return <PetContext.Provider value={value}>{children}</PetContext.Provider>;

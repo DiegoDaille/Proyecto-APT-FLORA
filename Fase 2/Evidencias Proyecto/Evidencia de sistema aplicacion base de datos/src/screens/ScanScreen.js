@@ -7,21 +7,24 @@
  *   - IA caída / circuito abierto     -> nivel 2: cuestionario, o demostración si está configurado.
  *   - Error 400 (luminosidad)         -> reintento con mejor iluminación.
  * Además: consejos para una buena foto y las últimas identificaciones (SQLite).
+ * v2.1: tema dinámico + "despertar" del servidor al abrir la pantalla (Render plan gratuito).
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CertaintyBadge from '../components/CertaintyBadge';
 import LoadingState from '../components/LoadingState';
 import PhotoPicker from '../components/PhotoPicker';
 import PlantThumb from '../components/PlantThumb';
 import PrimaryButton from '../components/PrimaryButton';
+import { API_BASE_URL, WARMUP_TIMEOUT_MS } from '../config/appConfig';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import useNetworkStatus from '../hooks/useNetworkStatus';
 import { useAiStatus } from '../services/aiCircuit';
 import { useDemoSettings } from '../services/demoSettings';
 import { addIdentification, getRecentIdentifications } from '../services/historyDb';
 import { identifyPlant, shouldFallbackToQuiz } from '../services/plantIdService';
-import { baseStyles, colors, radius, spacing } from '../theme/theme';
+import { radius, spacing } from '../theme/theme';
 import { getCertainty } from '../utils/certainty';
 import { timeAgo } from '../utils/timeAgo';
 
@@ -33,6 +36,8 @@ const TIPS = [
 ];
 
 export default function ScanScreen({ navigation }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { isOnline } = useNetworkStatus();
   const aiStatus = useAiStatus();
   const demo = useDemoSettings();
@@ -53,6 +58,17 @@ export default function ScanScreen({ navigation }) {
     loadRecent();
     return navigation.addListener('focus', loadRecent);
   }, [navigation, loadRecent]);
+
+  // Despierta el backend (Render duerme tras ~15 min): mientras el usuario toma la foto ya se está levantando
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), WARMUP_TIMEOUT_MS);
+    fetch(`${API_BASE_URL}/health/`, { signal: controller.signal }).catch(() => {});
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, []);
 
   const goToQuiz = (reason, photoUri = null) =>
     navigation.navigate('ManualQuiz', { photoUri, reason });
@@ -121,15 +137,15 @@ export default function ScanScreen({ navigation }) {
 
   if (phase === 'processing') {
     return (
-      <View style={baseStyles.screen}>
+      <View style={styles.screen}>
         {photo ? <Image source={{ uri: photo.uri }} style={styles.processingPhoto} /> : null}
-        <LoadingState message="Identificando tu planta con Pl@ntNet AI..." />
+        <LoadingState message="Identificando tu planta con Pl@ntNet AI... la primera vez puede tardar hasta un minuto" />
       </View>
     );
   }
 
   return (
-    <ScrollView style={baseStyles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Identifica tu planta</Text>
       <Text style={styles.subtitle}>
         Toma una foto de las hojas con buena luz. Evaluaremos la especie y sus requerimientos de riego.
@@ -163,11 +179,7 @@ export default function ScanScreen({ navigation }) {
           <Text style={styles.errorTitle}>No pudimos procesar la imagen</Text>
           <Text style={styles.errorText}>{errorMessage}</Text>
           <View style={styles.errorActions}>
-            <PrimaryButton
-              title="Reintentar"
-              onPress={() => photo && identify(photo)}
-              style={styles.flex}
-            />
+            <PrimaryButton title="Reintentar" onPress={() => photo && identify(photo)} style={styles.flex} />
             <PrimaryButton
               title="Usar cuestionario"
               variant="outline"
@@ -214,8 +226,12 @@ export default function ScanScreen({ navigation }) {
             >
               <PlantThumb uri={item.foto_uri} size={44} radius={12} iconSize={20} />
               <View style={styles.recentInfo}>
-                <Text style={styles.recentName} numberOfLines={1}>{item.nombre_comun}</Text>
-                <Text style={styles.recentLatin} numberOfLines={1}>{item.nombre_cientifico}</Text>
+                <Text style={styles.recentName} numberOfLines={1}>
+                  {item.nombre_comun}
+                </Text>
+                <Text style={styles.recentLatin} numberOfLines={1}>
+                  {item.nombre_cientifico}
+                </Text>
                 <CertaintyBadge
                   certainty={item.certeza}
                   percent={item.coincidencia}
@@ -237,7 +253,8 @@ export default function ScanScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => ({
+  screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg, paddingBottom: spacing.xl },
   title: { fontSize: 22, fontWeight: '700', color: colors.text },
   subtitle: { fontSize: 14, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 20 },
@@ -250,7 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   statusOk: { backgroundColor: colors.tint },
-  statusDegraded: { backgroundColor: '#FBF3E1' },
+  statusDegraded: { backgroundColor: colors.warningTint },
   statusText: { flex: 1, fontSize: 12, fontWeight: '600' },
   pickerBox: { marginTop: spacing.md },
   link: {
@@ -267,7 +284,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.md,
-    backgroundColor: '#FBF3E1',
+    backgroundColor: colors.warningTint,
   },
   offlineText: { flex: 1, color: colors.warning, fontSize: 13, fontWeight: '500' },
   errorBox: {
@@ -290,7 +307,7 @@ const styles = StyleSheet.create({
   tipsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm },
   tipsTitle: { fontSize: 14, fontWeight: '700', color: colors.primaryDark },
   tipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
-  tipText: { flex: 1, fontSize: 13, color: '#333333' },
+  tipText: { flex: 1, fontSize: 13, color: colors.text },
   recentBox: { marginTop: spacing.lg },
   recentTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: spacing.sm },
   recentRow: {

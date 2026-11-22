@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import SeasonalClimateCard from '../components/SeasonalClimateCard';
 import { CATALOGO_SINTOMAS } from '../components/SymptomDiagnosisModal';
 import { diagnose } from '../services/diagnosisService';
 import { colors, radius, spacing } from '../theme/theme';
@@ -127,6 +128,17 @@ export default function DiagnosisScreen({ route, navigation }) {
             </View>
           )}
 
+          {/* Clima estacional: el consejo cambia según el síntoma detectado y la estación */}
+          {result ? (
+            <SeasonalClimateCard
+              style={styles.seasonal}
+              symptom={result.tipo}
+              species={plant ? { categoria: plant.categoria } : null}
+              ubicacion={plant?.ubicacion}
+              baseDays={plant?.frecuencia_riego_dias}
+            />
+          ) : null}
+
           <TouchableOpacity style={styles.btnClose} onPress={() => navigation.goBack()} activeOpacity={0.8}>
             <Text style={styles.btnCloseText}>Volver al jardín</Text>
           </TouchableOpacity>
@@ -185,6 +197,7 @@ const styles = StyleSheet.create({
   source: { flex: 1, fontSize: 11, color: colors.textMuted },
   btnReset: { marginTop: 12, alignSelf: 'flex-start' },
   btnResetText: { fontSize: 12, color: colors.accent, fontWeight: '600', textDecorationLine: 'underline' },
+  seasonal: { marginTop: 16 },
   btnClose: {
     marginTop: 20,
     backgroundColor: colors.ink,

@@ -9,6 +9,7 @@ import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } fr
 import { Ionicons } from '@expo/vector-icons';
 import CertaintyBadge from '../components/CertaintyBadge';
 import PrimaryButton from '../components/PrimaryButton';
+import SeasonalClimateCard from '../components/SeasonalClimateCard';
 import { usePlants } from '../context/PlantsContext';
 import { baseStyles, colors, radius, spacing } from '../theme/theme';
 import { CERTAINTY, CERTAINTY_META, getCertainty } from '../utils/certainty';
@@ -146,6 +147,12 @@ export default function PlantDetailScreen({ route, navigation }) {
         ) : null}
       </View>
 
+      <SeasonalClimateCard
+        style={styles.seasonal}
+        species={species}
+        baseDays={species.frecuencia_riego_dias}
+      />
+
       <PrimaryButton
         title="Evaluar el lugar donde la pondré"
         onPress={() =>
@@ -216,6 +223,7 @@ const styles = StyleSheet.create({
   },
   careVal: { fontSize: 13, fontWeight: '600', color: '#000000', textAlign: 'center' },
   careLab: { fontSize: 10, color: colors.textMuted },
+  seasonal: { marginTop: spacing.md },
   cta: { marginTop: spacing.lg },
   second: { marginTop: spacing.sm },
   emptyWrap: { padding: spacing.xl },

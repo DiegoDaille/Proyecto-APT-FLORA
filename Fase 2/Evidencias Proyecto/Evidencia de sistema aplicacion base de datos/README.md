@@ -23,33 +23,45 @@ El sistema implementa una arquitectura cliente-servidor bajo la metodología **1
 ```text
 flora_app/
 ├── assets/
-│   └── mascot/                   # Estados gráficos deterministas de "Espina" (FSM)
+│   ├── mascot/                   # Estados gráficos deterministas de "Espina" (FSM)
+│   ├── favicon.ico               # Ícono web de la aplicación
+│   ├── icon.png                  # Ícono principal del lanzador de la aplicación
+│   └── notification-icon.png     # Ícono monocromático nativo para notificaciones Android
 ├── src/
 │   ├── components/               # Componentes UI reutilizables (CertaintyBadge, DemoPanel,
-│   │                             # DynamicPlantMascot, MascotaWidget, PhotoPicker, etc.)
+│   │                             # DynamicPlantMascot, MascotaWidget, PhotoPicker,
+│   │                             # ThemePicker, WeatherCard, WeekStrip, etc.)
 │   ├── config/                   # appConfig.js (Resolución dinámica de entornos Dev/Prod)
-│   ├── context/                  # Estado global reactivo (Auth, Notifications, Pet, Plants)
+│   ├── context/                  # Estado global reactivo: AuthContext, NotificationsContext,
+│   │                             # PetContext, PlantsContext, ThemeContext
 │   ├── data/                     # quiz.js (Reglas heurísticas), species.json (Catálogo local)
 │   ├── hooks/                    # useNetworkStatus.js (Detección de conectividad en tiempo real)
-│   ├── mocks/                    # Datos simulados para pruebas y modo demostración
+│   ├── mocks/                    # Datos simulados para pruebas y modo demostración (auth, plants)
 │   ├── navigation/               # AppNavigator, AuthStack, RootNavigator, ScanStack, navigationRef
 │   ├── polyfills/                # Compatibilidad de APIs nativas en entorno Hermes/Expo
 │   ├── screens/                  # Vistas: Login, Register, VerifyCode, Home, Scan, ManualQuiz,
 │   │                             # EnvironmentScan, CompatibilityResult, Diagnosis,
-│   │                             # WateringSchedule, PlantDetail, PlantHistory, Profile
+│   │                             # WateringSchedule, PlantDetail, PlantHistory,
+│   │                             # PlantProgress, PlantTrash, Profile
 │   ├── services/                 # Capa de negocio, red y persistencia:
 │   │                             # - Resiliencia y API: aiCircuit.js, api.js, apiClient.js,
-│   │                             #   config.js, demoSettings.js, plantIdService.js
+│   │                             #   config.js, demoSettings.js, plantIdService.js,
+│   │                             #   weatherService.js
 │   │                             # - Persistencia Offline: db.js, db.web.js, historyDb.js,
-│   │                             #   photoStorage.js, syncService.js, tokenStorage.js
-│   │                             # - Dominio: authService.js, diagnosisService.js, imageService.js,
-│   │                             #   lightService.js, notificationService.js, photoUploadService.js,
-│   │                             #   plantService.js
-│   ├── theme/                    # theme.js (Tokens de diseño, tipografía escalable y contraste)
-│   └── utils/                    # Funciones puras y algoritmos: certainty.js, compatibility.js,
-│                                 # compressPhoto.js, dates.js, light.js, petFsm.js, base64.js,
-│                                 # plantPayload.js, reminders.js, schedule.js, streak.js,
-│                                 # timeAgo.js, validation.js, watering.js
+│   │                             #   photoStorage.js, plantPhotosDb.js, plantTrash.js,
+│   │                             #   syncService.js, tokenStorage.js
+│   │                             # - Dominio y Gamificación: authService.js, diagnosisService.js,
+│   │                             #   imageService.js, lightService.js, notificationService.js,
+│   │                             #   photoUploadService.js, plantService.js, secretAchievements.js
+│   ├── theme/                    # theme.js, themes.js (Tokens de diseño, paletas dinámicas,
+│   │                             # tipografía escalable y contraste WCAG 2.1 AA)
+│   ├── utils/                    # Funciones puras y algoritmos: base64.js, certainty.js,
+│   │                             # compatibility.js, compressPhoto.js, dates.js, haptics.js,
+│   │                             # light.js, petFsm.js, plantPayload.js, reminders.js,
+│   │                             # schedule.js, seasonal.js, streak.js, timeAgo.js,
+│   │                             # validation.js, watering.js
+│   └── widgets/                  # Widget nativo de pantalla de inicio Android:
+│                                 # RiegoWidget.js, widgetSync.js, widgetTaskHandler.js
 ├── App.js                        # Punto de entrada principal de la aplicación
 ├── app.json                      # Configuración nativa de Expo (v2.0.0 / versionCode 2)
 ├── eas.json                      # Perfiles de compilación en la nube (EAS Build)
